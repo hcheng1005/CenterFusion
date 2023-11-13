@@ -37,6 +37,7 @@ def map_pointcloud_to_image(pc, cam_intrinsic, img_shape=(1600,900)):
     points = view_points(points[:3, :], cam_intrinsic, normalize=True)
 
     ## Remove points that are either outside or behind the camera. 
+    # 删除像素外的点云
     mask = np.ones(depths.shape[0], dtype=bool)
     mask = np.logical_and(mask, depths > 0)
     mask = np.logical_and(mask, points[0, :] > 1)
@@ -279,10 +280,14 @@ def pc_dep_to_hm_torch(pc_hm, pc_dep, dep, bbox, dist_thresh, opt):
       dep = dep[0]
     ct = torch.tensor(
       [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=torch.float32)
-    bbox_int = torch.tensor([torch.floor(bbox[0]), 
-                         torch.floor(bbox[1]), 
-                         torch.ceil(bbox[2]), 
-                         torch.ceil(bbox[3])], dtype=torch.int32)# format: xyxy
+    # bbox_int = torch.tensor([torch.floor(bbox[0]), 
+    #                      torch.floor(bbox[1]), 
+    #                      torch.ceil(bbox[2]), 
+    #                      torch.ceil(bbox[3])], dtype=torch.int32)# format: xyxy
+    bbox_int = torch.tensor([int(torch.floor(bbox[0])), 
+                         int(torch.floor(bbox[1])), 
+                         int(torch.ceil(bbox[2])), 
+                         int(torch.ceil(bbox[3]))], dtype=torch.int32)# format: xyxy
 
     roi = pc_dep[:, bbox_int[1]:bbox_int[3]+1, bbox_int[0]:bbox_int[2]+1]
     pc_dep = roi[opt.pc_feat_channels['pc_dep']]

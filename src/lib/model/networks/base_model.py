@@ -28,10 +28,12 @@ class BaseModel(nn.Module):
         self.num_stacks = num_stacks
         self.heads = heads
         self.secondary_heads = opt.secondary_heads
+        # opt.secondary_heads = ['velocity', 'nuscenes_att', 'dep_sec', 'rot_sec']
         
-        last_channels = {head: last_channel for head in heads}
-        for head in self.secondary_heads:
-          last_channels[head] = last_channel+len(opt.pc_feat_lvl)
+        last_channels = {head: last_channel for head in heads} # primary heads
+        for head in self.secondary_heads:#secondary heads
+          last_channels[head] = last_channel + len(opt.pc_feat_lvl)# 在原本基础上增加雷达特征通道
+          # opt.pc_feat_lvl = ['pc_dep','pc_vx','pc_vz']，如果有雷达相关，那通道数增加len()个数量
         
         for head in self.heads:
           classes = self.heads[head]
@@ -46,6 +48,10 @@ class BaseModel(nn.Module):
             for k in range(1, len(head_conv)):
                 convs.append(nn.Conv2d(head_conv[k - 1], head_conv[k], 
                               kernel_size=1, bias=True))
+            '''
+            convs的结构是[conv1(64, 256, 1x1), conv2... out(256, , classes, 1x1)]
+            下面将每个conv部分后面加上激活函数，并最后放上out(1x1的卷积)
+            '''
             if len(convs) == 1:
               fc = nn.Sequential(conv, nn.ReLU(inplace=True), out)
             elif len(convs) == 2:
@@ -74,7 +80,10 @@ class BaseModel(nn.Module):
               fc.bias.data.fill_(opt.prior_bias)
             else:
               fill_fc_weights(fc)
-
+          
+          # 类实例的每个属性进行赋值时，都会首先调用__setattr__()方法，并在__setattr__()方法中将属性名和属性值添加到类实例的__dict__属性中
+          # 可以理解为对每个head的实现方法（函数）进行了注册，方便后面调用
+          # 比如这样子调用：self.__getattr__(head)(sec_feats)，其中sec_feats是输入（input）
           self.__setattr__(head, fc)
 
 
@@ -95,11 +104,13 @@ class BaseModel(nn.Module):
         z = {}
 
         ## Run the first stage heads
+        # 图像阶段
         for head in self.heads:
           if head not in self.secondary_heads:
             z[head] = self.__getattr__(head)(feats[s])
 
-        if self.opt.pointcloud:
+        # 引入毫米波点云head，获取对应的结果
+        if self.opt.pointcloud: # 雷达点云存在时生成radar heatmap和second head
           ## get pointcloud heatmap
           if not self.training:
             if self.opt.disable_frustum:

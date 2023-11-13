@@ -30,6 +30,14 @@ class Detector(object):
       opt.device = torch.device('cpu')
     
     print('Creating model...')
+
+    '''
+    默认值如下：
+    opt.arch = 'dla_34'
+    opt.heads = 模型的检测头部分，详见opts.py: line:472部分
+    opt.head_conv = -1
+    '''
+        
     self.model = create_model(
       opt.arch, opt.heads, opt.head_conv, opt=opt)
     self.model = load_model(self.model, opt.load_model, opt)

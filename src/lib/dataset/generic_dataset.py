@@ -50,6 +50,8 @@ class GenericDataset(data.Dataset):
            [5, 7], [7, 9], [6, 8], [8, 10], 
            [6, 12], [5, 11], [11, 12], 
            [12, 14], [14, 16], [11, 13], [13, 15]]
+  
+  # TODO： what's this？
   mean = np.array([0.40789654, 0.44719302, 0.47026115],
                    dtype=np.float32).reshape(1, 1, 3)
   std  = np.array([0.28863828, 0.27408164, 0.27809835],
@@ -123,11 +125,12 @@ class GenericDataset(data.Dataset):
       c, s, rot, [opt.input_w, opt.input_h])
     trans_output = get_affine_transform(
       c, s, rot, [opt.output_w, opt.output_h])
-    inp = self._get_input(img, trans_input)
+    inp = self._get_input(img, trans_input) # 获取图像数据
     ret = {'image': inp}
     gt_det = {'bboxes': [], 'scores': [], 'clses': [], 'cts': []}
 
     #  load point cloud data
+    # 加载毫米波点云数据
     if opt.pointcloud:
       pc_2d, pc_N, pc_dep, pc_3d = self._load_pc_data(img, img_info, 
         trans_input, trans_output, flipped)
@@ -373,6 +376,7 @@ class GenericDataset(data.Dataset):
 
 
   ## Load the Radar point cloud data
+  # 获取点云数据并转换到图像坐标系
   def _load_pc_data(self, img, img_info, inp_trans, out_trans, flipped=0):
     img_height, img_width = img.shape[0], img.shape[1]
     radar_pc = np.array(img_info.get('radar_pc', None))
@@ -380,19 +384,25 @@ class GenericDataset(data.Dataset):
       return None, None, None, None
 
     # calculate distance to points
+    # depth 径向距离
     depth = radar_pc[2,:]
     
     # filter points by distance
+    # 删除范围外点云
     if self.opt.max_pc_dist > 0:
-      mask = (depth <= self.opt.max_pc_dist)
+      mask = (depth <= self.opt.max_pc_dist) # 最远距离，默认是100m
       radar_pc = radar_pc[:,mask]
       depth = depth[mask]
 
     # add z offset to radar points
+    # z高度偏移量（当前设置的是0.0）
     if self.opt.pc_z_offset != 0:
       radar_pc[1,:] -= self.opt.pc_z_offset
     
     # map points to the image and filter ones outside
+    # 点云映射到图像坐标系，删除像素坐标系外的点云
+    # [pc_2d]： 点云的像素坐标系
+    # [mask]: 有效点索引
     pc_2d, mask = map_pointcloud_to_image(radar_pc, np.array(img_info['camera_intrinsic']), 
                               img_shape=(img_info['width'],img_info['height']))
     pc_3d = radar_pc[:,mask]
@@ -408,6 +418,7 @@ class GenericDataset(data.Dataset):
       pc_3d[0,:] *= -1  # flipping the x dimension
       pc_3d[8,:] *= -1  # flipping x velocity (x is right, z is front)
 
+    # 进一步处理点云数据
     pc_2d, pc_3d, pc_dep = self._process_pc(pc_2d, pc_3d, img, inp_trans, out_trans, img_info)
     pc_N = np.array(pc_2d.shape[1])
 
@@ -421,12 +432,20 @@ class GenericDataset(data.Dataset):
     return pc_z, pc_N, pc_dep, pc_3dz
 
 
-
+  # 点云生成heatmap
   def _process_pc(self, pc_2d, pc_3d, img, inp_trans, out_trans, img_info):    
     img_height, img_width = img.shape[0], img.shape[1]
 
     # transform points
     mask = None
+    
+    '''
+    opt.pc_feat_lvl = [
+        'pc_dep',
+        'pc_vx',
+        'pc_vz',
+      ]
+    '''
     if len(self.opt.pc_feat_lvl) > 0:
       pc_feat, mask = self._transform_pc(pc_2d, out_trans, self.opt.output_w, self.opt.output_h)
       pc_hm_feat = np.zeros((len(self.opt.pc_feat_lvl), self.opt.output_h, self.opt.output_w), np.float32)
@@ -439,18 +458,21 @@ class GenericDataset(data.Dataset):
       pc_N = pc_2d.shape[1]
 
     # create point cloud pillars
+    # 毫米波点云生成pillars
     if self.opt.pc_roi_method == "pillars":
       pillar_wh = self.create_pc_pillars(img, img_info, pc_2d, pc_3d, inp_trans, out_trans)    
 
     # generate point cloud channels
+    # 构造毫米波雷达点云的heatmap
+    # 此处有两种方式：pillars or hm (默认使用pillars)
     for i in range(pc_N-1, -1, -1):
       for feat in self.opt.pc_feat_lvl:
-        point = pc_feat[:,i]
-        depth = point[2]
+        point = pc_feat[:,i] # 点云像素坐标
+        depth = point[2] # 点云深度（径向距离）
         ct = np.array([point[0], point[1]])
         ct_int = ct.astype(np.int32)
 
-        if self.opt.pc_roi_method == "pillars":
+        if self.opt.pc_roi_method == "pillars": # 基于pillars的方式
           wh = pillar_wh[:,i]
           b = [max(ct[1]-wh[1], 0), 
               ct[1], 
@@ -458,7 +480,7 @@ class GenericDataset(data.Dataset):
               min(ct[0]+wh[0]/2, self.opt.output_w)]
           b = np.round(b).astype(np.int32)
         
-        elif self.opt.pc_roi_method == "hm":
+        elif self.opt.pc_roi_method == "hm": # 基于hm的方式
           radius = (1.0 / depth) * self.opt.r_a + self.opt.r_b
           radius = gaussian_radius((radius, radius))
           radius = max(0, int(radius))
@@ -485,17 +507,19 @@ class GenericDataset(data.Dataset):
 
     return pc_2d, pc_3d, pc_hm_feat
 
-
+  # 毫米波雷达构造pillars
   def create_pc_pillars(self, img, img_info, pc_2d, pc_3d, inp_trans, out_trans):
     pillar_wh = np.zeros((2, pc_3d.shape[1]))
     boxes_2d = np.zeros((0,8,2))
-    pillar_dim = self.opt.pillar_dims
+    pillar_dim = self.opt.pillar_dims # 1.5,0.5,0.5 
     v = np.dot(np.eye(3), np.array([1,0,0]))
     ry = -np.arctan2(v[2], v[0])
 
     for i, center in enumerate(pc_3d[:3,:].T):
       # Create a 3D pillar at pc location for the full-size image
+      # 根据体素大小以及中心点位置（毫米波雷达点云视作pillar的中心位置），构造3dbox
       box_3d = compute_box_3d(dim=pillar_dim, location=center, rotation_y=ry)
+      # 根据3Dbox构造2Dbox
       box_2d = project_to_image(box_3d, img_info['calib']).T  # [2x8]        
       
       ## save the box for debug plots
@@ -505,12 +529,14 @@ class GenericDataset(data.Dataset):
         boxes_2d = np.concatenate((boxes_2d, np.expand_dims(box_2d_img.T,0)),0)
 
       # transform points
+      # 转换并筛选
       box_2d_t, m = self._transform_pc(box_2d, out_trans, self.opt.output_w, self.opt.output_h)
       
       if box_2d_t.shape[1] <= 1:
         continue
 
       # get the bounding box in [xyxy] format
+      # 获取2dbox的长宽
       bbox = [np.min(box_2d_t[0,:]), 
               np.min(box_2d_t[1,:]), 
               np.max(box_2d_t[0,:]), 
@@ -612,6 +638,8 @@ class GenericDataset(data.Dataset):
     t_points = np.squeeze(t_points,0).T       # [1,N,2] -> [2,N]
     
     # remove points outside image
+    # TODO：此处为什么又进行了一次像素范围筛选？
+    # 此处是根据像素的输出范围筛选一遍点云（函数的输入是输入像素坐标下的雷达点云对应的像素坐标，trans是输出像素坐标系的变换关系，进行变换后，再筛一遍点云）
     if filter_out:
       mask = (t_points[0,:]<img_width) \
               & (t_points[1,:]<img_height) \

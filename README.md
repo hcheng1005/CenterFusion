@@ -1,8 +1,36 @@
 # CenterFusion <!-- omit in toc --> 
  This repository contains the implementation of [CenterFusion: Center-based Radar and Camera Fusion for 3D Object Detection](https://arxiv.org/abs/2011.04841).
 
-
 ![](figures/pillars.png)
+
+---
+
+## 20231113: 调试记录
+### torch版本：
+  ```
+  conda install pytorch==1.12.0 torchvision==0.13.0 torchaudio==0.12.0 cudatoolkit=11.3 -c pytorch
+  ```
+### DCNV2版本安装问题
+step1: 源码下载
+```
+git clone https://github.com/lbin/DCNv2.git
+```
+
+step2: 切换分支至pytorch_1.11
+```
+git checkout pytorch_1.11
+
+```
+step3: 编译安装
+```
+python setup.py build develop 
+```
+
+### 其他错误
+1. 遇到一些module的问题，一般进行对应的安装即可;
+2. 运行错误“TypeError: only integer tensors of a single element can be converted to an index”，查看修改点pointcloud.py文件LINE:287
+
+
 ### Citing CenterFusion <!-- omit in toc -->
  If you find CenterFusion useful in your research, please consider citing:
 

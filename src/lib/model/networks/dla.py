@@ -14,12 +14,12 @@ import torch.nn.functional as F
 import torch.utils.model_zoo as model_zoo
 
 from .base_model import BaseModel
-
-try:
-    from .DCNv2.dcn_v2 import DCN
-except:
-    print('import DCN failed')
-    DCN = None
+from .DCNv2.dcn_v2 import DCN
+# try:
+#     from .DCNv2.dcn_v2 import DCN
+# except:
+#     print('import DCN failed')
+#     DCN = None
 
 
 BN_MOMENTUM = 0.1
@@ -591,13 +591,14 @@ DLA_NODE = {
     'conv': (Conv, Conv),
 }
 
+# BaseModel类中定义了各种head（包括毫米波点云的head）
 class DLASeg(BaseModel):
     def __init__(self, num_layers, heads, head_convs, opt):
         super(DLASeg, self).__init__(
             heads, head_convs, 1, 64 if num_layers == 34 else 128, opt=opt)
         down_ratio=4
         self.opt = opt
-        self.node_type = DLA_NODE[opt.dla_node]
+        self.node_type = DLA_NODE[opt.dla_node] # 默认使用可变性卷积 DeformConv
         print('Using node type:', self.node_type)
         self.first_level = int(np.log2(down_ratio))
         self.last_level = 5

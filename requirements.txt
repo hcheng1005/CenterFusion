@@ -1,4 +1,4 @@
-scikit-learn==0.21.0
+scikit-learn==0.21.1
 opencv-python
 Cython
 numba
