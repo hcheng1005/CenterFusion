@@ -206,6 +206,15 @@ def get_dist_thresh(calib, ct, dim, alpha):
     return dist_thresh
 
 
+'''
+names: generate_pc_hm
+description: 截锥关联并生成heatmap
+param {*} output
+param {*} pc_dep
+param {*} calib
+param {*} opt
+return {*}
+'''
 def generate_pc_hm(output, pc_dep, calib, opt):
       K = opt.K
       # K = 100

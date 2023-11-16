@@ -76,7 +76,11 @@ class Detector(object):
     else:
       image = image_or_path_or_tensor['image'][0].numpy()
       pre_processed_images = image_or_path_or_tensor
-      pc_dep = image_or_path_or_tensor.get('pc_dep', None)
+      
+      # 在数据集创建阶段，已经预处理好pc_dep数据
+      # 详见 [generic_dataset.py]: def __getitem__(self, index)
+      # self._load_pc_data(img, img_info, trans_input, trans_output, flipped)
+      pc_dep = image_or_path_or_tensor.get('pc_dep', None) 
 
       if pc_dep is not None:
         if self.opt.flip_test:
@@ -123,8 +127,10 @@ class Detector(object):
       pre_process_time = time.time()
       pre_time += pre_process_time - scale_start_time
       
+      # 模型推理
       output, dets, forward_time = self.process(
         images, self.pre_images, pre_hms, pre_inds, return_time=True, pc_dep=pc_dep, meta=meta)
+      
       net_time += forward_time - pre_process_time
       decode_time = time.time()
       dec_time += decode_time - forward_time
@@ -321,11 +327,17 @@ class Detector(object):
     return output
 
 
+  '''
+  names: process
+  description: 模型推理部分的代码实现
+  return {*}
+  '''
   def process(self, images, pre_images=None, pre_hms=None,
     pre_inds=None, return_time=False, pc_dep=None, meta=None):
     with torch.no_grad():
       calib = torch.from_numpy(meta['calib']).float().to(images.device).squeeze(0)
       torch.cuda.synchronize()
+      # 推理
       output = self.model(images, pc_dep=pc_dep, calib=calib)[-1]
 
       output = self._sigmoid_output(output)

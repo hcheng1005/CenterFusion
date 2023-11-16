@@ -100,7 +100,7 @@ class GenericDataset(data.Dataset):
 
   def __getitem__(self, index):
     opt = self.opt
-    img, anns, img_info, img_path = self._load_data(index)
+    img, anns, img_info, img_path = self._load_data(index) # 获取图像、标注以及路径
     height, width = img.shape[0], img.shape[1]
 
     ## sort annotations based on depth form far to near
@@ -114,26 +114,25 @@ class GenericDataset(data.Dataset):
 
     ## data augmentation for training set
     if 'train' in self.split:
-      c, aug_s, rot = self._get_aug_param(c, s, width, height)
+      c, aug_s, rot = self._get_aug_param(c, s, width, height) # 数据增强
       s = s * aug_s
       if np.random.random() < opt.flip:
         flipped = 1
         img = img[:, ::-1, :]
         anns = self._flip_anns(anns, width)
 
-    trans_input = get_affine_transform(
-      c, s, rot, [opt.input_w, opt.input_h])
-    trans_output = get_affine_transform(
-      c, s, rot, [opt.output_w, opt.output_h])
+    # 输入输出的仿射变换矩阵
+    trans_input = get_affine_transform(c, s, rot, [opt.input_w, opt.input_h])
+    trans_output = get_affine_transform(c, s, rot, [opt.output_w, opt.output_h])
     inp = self._get_input(img, trans_input) # 获取图像数据
     ret = {'image': inp}
     gt_det = {'bboxes': [], 'scores': [], 'clses': [], 'cts': []}
 
-    #  load point cloud data
+    # load point cloud data
     # 加载毫米波点云数据
     if opt.pointcloud:
       pc_2d, pc_N, pc_dep, pc_3d = self._load_pc_data(img, img_info, 
-        trans_input, trans_output, flipped)
+                                                      trans_input, trans_output, flipped)
       ret.update({ 'pc_2d': pc_2d,
                    'pc_3d': pc_3d,
                    'pc_N': pc_N,
@@ -401,8 +400,7 @@ class GenericDataset(data.Dataset):
     
     # map points to the image and filter ones outside
     # 点云映射到图像坐标系，删除像素坐标系外的点云
-    # [pc_2d]： 点云的像素坐标系
-    # [mask]: 有效点索引
+    # [pc_2d]： 点云的像素坐标系 [mask]: 有效点索引
     pc_2d, mask = map_pointcloud_to_image(radar_pc, np.array(img_info['camera_intrinsic']), 
                               img_shape=(img_info['width'],img_info['height']))
     pc_3d = radar_pc[:,mask]
@@ -446,7 +444,9 @@ class GenericDataset(data.Dataset):
         'pc_vz',
       ]
     '''
-    if len(self.opt.pc_feat_lvl) > 0:
+    # len(self.opt.pc_feat_lvl) is 3
+    if len(self.opt.pc_feat_lvl) > 0: 
+      # 根据最后的输出size，进一步筛选pc_2d
       pc_feat, mask = self._transform_pc(pc_2d, out_trans, self.opt.output_w, self.opt.output_h)
       pc_hm_feat = np.zeros((len(self.opt.pc_feat_lvl), self.opt.output_h, self.opt.output_w), np.float32)
     
@@ -458,7 +458,7 @@ class GenericDataset(data.Dataset):
       pc_N = pc_2d.shape[1]
 
     # create point cloud pillars
-    # 毫米波点云生成pillars
+    # 将一个个毫米波点云生成pillars[1.5, 0.5, 0.5]
     if self.opt.pc_roi_method == "pillars":
       pillar_wh = self.create_pc_pillars(img, img_info, pc_2d, pc_3d, inp_trans, out_trans)    
 
@@ -473,16 +473,16 @@ class GenericDataset(data.Dataset):
         ct_int = ct.astype(np.int32)
 
         if self.opt.pc_roi_method == "pillars": # 基于pillars的方式
-          wh = pillar_wh[:,i]
+          wh = pillar_wh[:,i]  # 获取pillar的长宽 width and height
           b = [max(ct[1]-wh[1], 0), 
               ct[1], 
               max(ct[0]-wh[0]/2, 0), 
               min(ct[0]+wh[0]/2, self.opt.output_w)]
-          b = np.round(b).astype(np.int32)
+          b = np.round(b).astype(np.int32) # 四舍五入，因为这里需要用的是整形的像素坐标
         
         elif self.opt.pc_roi_method == "hm": # 基于hm的方式
           radius = (1.0 / depth) * self.opt.r_a + self.opt.r_b
-          radius = gaussian_radius((radius, radius))
+          radius = gaussian_radius((radius, radius)) # 高斯径向基
           radius = max(0, int(radius))
           x, y = ct_int[0], ct_int[1]
           height, width = pc_hm_feat.shape[1:3]
@@ -493,17 +493,17 @@ class GenericDataset(data.Dataset):
         
         if feat == 'pc_dep':
           channel = self.opt.pc_feat_channels['pc_dep']
-          pc_hm_feat[channel, b[0]:b[1], b[2]:b[3]] = depth
+          pc_hm_feat[channel, b[0]:b[1], b[2]:b[3]] = depth # 在对应的位置上赋值 depth
         
         if feat == 'pc_vx':
           vx = pc_3d[8,i]
           channel = self.opt.pc_feat_channels['pc_vx']
-          pc_hm_feat[channel, b[0]:b[1], b[2]:b[3]] = vx
+          pc_hm_feat[channel, b[0]:b[1], b[2]:b[3]] = vx  # 在对应的位置上赋值 depth
         
         if feat == 'pc_vz':
           vz = pc_3d[9,i]
           channel = self.opt.pc_feat_channels['pc_vz']
-          pc_hm_feat[channel, b[0]:b[1], b[2]:b[3]] = vz
+          pc_hm_feat[channel, b[0]:b[1], b[2]:b[3]] = vz  # 在对应的位置上赋值 depth
 
     return pc_2d, pc_3d, pc_hm_feat
 

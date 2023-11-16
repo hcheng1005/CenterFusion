@@ -95,6 +95,16 @@ class BaseModel(nn.Module):
       raise NotImplementedError
 
 
+    '''
+    names: forward
+    description: 最终模型推理调用函数
+    param {*} self
+    param {*} x
+    param {*} pc_hm
+    param {*} pc_dep
+    param {*} calib
+    return {*}
+    '''
     def forward(self, x, pc_hm=None, pc_dep=None, calib=None):
       ## extract features from image
       feats = self.img2feats(x)
@@ -104,28 +114,33 @@ class BaseModel(nn.Module):
         z = {}
 
         ## Run the first stage heads
-        # 图像阶段
-        for head in self.heads:
+        # 图像阶段检测头
+        for head in self.heads: 
           if head not in self.secondary_heads:
             z[head] = self.__getattr__(head)(feats[s])
 
         # 引入毫米波点云head，获取对应的结果
         if self.opt.pointcloud: # 雷达点云存在时生成radar heatmap和second head
           ## get pointcloud heatmap
+          # 推理模式下，首先需生成hm 
+          # 训练模式下，已经提前预处理好[trainer.py: LINE: 124]）
           if not self.training:
             if self.opt.disable_frustum:
               pc_hm = pc_dep
               if self.opt.normalize_depth:
                 pc_hm[self.opt.pc_feat_channels['pc_dep']] /= self.opt.max_pc_dist
             else:
+              # 截锥关联并生成hm
               pc_hm = generate_pc_hm(z, pc_dep, calib, self.opt)
+              
           ind = self.opt.pc_feat_channels['pc_dep']
           z['pc_hm'] = pc_hm[:,ind,:,:].unsqueeze(1)
 
           ## Run the second stage heads  
+          ## 二阶段检测头【数据特征加上了毫米波点云】
           sec_feats = [feats[s], pc_hm]
           sec_feats = torch.cat(sec_feats, 1)
-          for head in self.secondary_heads:
+          for head in self.secondary_heads: 
             z[head] = self.__getattr__(head)(sec_feats)
         
         out.append(z)

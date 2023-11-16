@@ -120,6 +120,7 @@ class ModelWithLoss(torch.nn.Module):
     calib = batch['calib'].squeeze(0)
 
     ## run the first stage
+    ## 训练模式下的模型推理，可以看到pc_hm已经作为入参直接使用
     outputs = self.model(batch['image'], pc_hm=pc_hm, pc_dep=pc_dep, calib=calib)
     
     loss, loss_stats = self.loss(outputs, batch)
