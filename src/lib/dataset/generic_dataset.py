@@ -194,6 +194,7 @@ class GenericDataset(data.Dataset):
       if cls_id <= 0 or ('iscrowd' in ann and ann['iscrowd'] > 0):
         self._mask_ignore_or_crowd(ret, cls_id, bbox)
         continue
+      # 构造最终实例
       self._add_instance(
         ret, gt_det, k, cls_id, bbox, bbox_amodal, ann, trans_output, aug_s, 
         calib, pre_cts, track_ids)
@@ -770,6 +771,11 @@ class GenericDataset(data.Dataset):
     return bbox, bbox_amodal
 
 
+  '''
+  names: 
+  description: Briefly describe the function of your function
+  return {*}
+  '''
   def _add_instance(
     self, ret, gt_det, k, cls_id, bbox, bbox_amodal, ann, trans_output,
     aug_s, calib, pre_cts=None, track_ids=None):

@@ -348,17 +348,27 @@ def pc_dep_to_hm_torch(pc_hm, pc_dep, dep, bbox, dist_thresh, opt):
                w_min:w_max+1+1] = vz
 
 
-
+'''
+names: pc_dep_to_hm
+description: Briefly describe the function of your function
+param {*} pc_hm
+param {*} pc_dep
+param {*} dep
+param {*} bbox
+param {*} dist_thresh
+param {*} opt
+return {*}
+'''
 def pc_dep_to_hm(pc_hm, pc_dep, dep, bbox, dist_thresh, opt):
     if isinstance(dep, list) and len(dep) > 0:
       dep = dep[0]
-    ct = np.array(
-      [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+    ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
     bbox_int = np.array([np.floor(bbox[0]), 
                          np.floor(bbox[1]), 
                          np.ceil(bbox[2]), 
                          np.ceil(bbox[3])], np.int32)# format: xyxy
 
+    # 根据box的size确定ROI范围
     roi = pc_dep[:, bbox_int[1]:bbox_int[3]+1, bbox_int[0]:bbox_int[2]+1]
     pc_dep = roi[opt.pc_feat_channels['pc_dep']]
     pc_vx = roi[opt.pc_feat_channels['pc_vx']]
@@ -380,7 +390,7 @@ def pc_dep_to_hm(pc_hm, pc_dep, dep, bbox, dist_thresh, opt):
       pc_vz_match = nonzero_pc_vz[within_thresh]
 
       if len(pc_dep_match) > 0:
-        arg_min = np.argmin(pc_dep_match)
+        arg_min = np.argmin(pc_dep_match) # 寻找最近点
         dist = pc_dep_match[arg_min]
         vx = pc_vx_match[arg_min]
         vz = pc_vz_match[arg_min]
@@ -397,6 +407,7 @@ def pc_dep_to_hm(pc_hm, pc_dep, dep, bbox, dist_thresh, opt):
         h_min = int(ct[1] - h_interval/2.)
         h_max = int(ct[1] + h_interval/2.)
 
+        # 获取对应的属性并赋值到pc_hm中
         pc_hm[opt.pc_feat_channels['pc_dep'],
                h_min:h_max+1, 
                w_min:w_max+1+1] = dist
