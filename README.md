@@ -47,6 +47,10 @@ python setup.py build develop
 
 ----------------------------------------
 ## Contents <!-- omit in toc --> 
+- [20231113: 调试记录](#20231113-调试记录)
+  - [torch版本：](#torch版本)
+  - [DCNV2版本安装问题](#dcnv2版本安装问题)
+  - [其他错误](#其他错误)
 - [Introduction](#introduction)
 - [Results](#results)
 - [Installation](#installation)
