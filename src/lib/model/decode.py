@@ -94,6 +94,8 @@ def fusion_decode(output, K=100, opt=None):
   batch, cat, height, width = heat.size()
 
   heat = _nms(heat)
+  
+  # 获取前k个dets
   scores, inds, clses, ys0, xs0 = _topk(heat, K=K)
 
   clses  = clses.view(batch, K)

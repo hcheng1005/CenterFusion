@@ -337,6 +337,7 @@ class Detector(object):
     with torch.no_grad():
       calib = torch.from_numpy(meta['calib']).float().to(images.device).squeeze(0)
       torch.cuda.synchronize()
+      
       # 推理
       output = self.model(images, pc_dep=pc_dep, calib=calib)[-1]
 

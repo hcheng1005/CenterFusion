@@ -126,7 +126,7 @@ class KittiDB:
         Transform from nuScenes lidar frame to KITTI reference frame.
         :param box: Instance in nuScenes lidar frame.
         :param velo_to_cam_rot: Quaternion to rotate from lidar to camera frame.
-        :param velo_to_cam_trans: <np.float: 3>. Translate from lidar to camera frame.
+        :param velo_to_cam_trans: <np.float64: 3>. Translate from lidar to camera frame.
         :param r0_rect: Quaternion to rectify camera frame.
         :param kitti_to_nu_lidar_inv: Quaternion to rotate nuScenes to KITTI LIDAR.
         :return: Box instance in KITTI reference frame.
@@ -156,7 +156,7 @@ class KittiDB:
         """
         Projects 3D box into KITTI image FOV.
         :param box: 3D box in KITTI reference frame.
-        :param p_left: <np.float: 3, 4>. Projection matrix.
+        :param p_left: <np.float64: 3, 4>. Projection matrix.
         :param imsize: (width, height). Image size.
         :return: (xmin, ymin, xmax, ymax). Bounding box in image plane or None if box is not in the image.
         """
@@ -219,10 +219,10 @@ class KittiDB:
         :param token: KittiDB unique id.
         :param root: Base folder for all KITTI data.
         :return: {
-            'velo_to_cam': {'R': <np.float: 3, 3>, 'T': <np.float: 3, 1>}. Lidar to camera transformation matrix.
-            'r0_rect': <np.float: 3, 3>. Rectification matrix.
-            'p_left': <np.float: 3, 4>. Projection matrix.
-            'p_combined': <np.float: 4, 4>. Combined rectification and projection matrix.
+            'velo_to_cam': {'R': <np.float64: 3, 3>, 'T': <np.float64: 3, 1>}. Lidar to camera transformation matrix.
+            'r0_rect': <np.float64: 3, 3>. Rectification matrix.
+            'p_left': <np.float64: 3, 4>. Projection matrix.
+            'p_combined': <np.float64: 4, 4>. Combined rectification and projection matrix.
         }. Returns the transformation matrices. For details refer to the KITTI devkit.
         """
         calib_filename = KittiDB.get_filepath(token, 'calib', root=root)
@@ -419,7 +419,7 @@ class KittiDB:
         Project lidar points into image.
         :param pointcloud: The LidarPointCloud in nuScenes lidar frame.
         :param token: Unique KITTI token.
-        :return: <np.float: N, 3.> X, Y are points in image pixel coordinates. Z is depth in image.
+        :return: <np.float64: N, 3.> X, Y are points in image pixel coordinates. Z is depth in image.
         """
 
         # Copy and convert pointcloud.

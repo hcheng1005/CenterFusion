@@ -89,59 +89,53 @@ def prefetch_test(opt):
   bar = Bar('{}'.format(opt.exp_id), max=num_iters)
   time_stats = ['tot', 'load', 'pre', 'net', 'dec', 'post', 'merge', 'track']
   avg_time_stats = {t: AverageMeter() for t in time_stats}
-  
-  # if opt.use_loaded_results:
-  #   for img_id in data_loader.dataset.images:
-  #     results[img_id] = load_results['{}'.format(img_id)]
-  #   num_iters = 0
-  
+    
   for ind, (img_id, pre_processed_images) in enumerate(data_loader):
     if ind >= num_iters:
       break
-    # if opt.tracking and ('is_first_frame' in pre_processed_images):
-    #   if '{}'.format(int(img_id.numpy().astype(np.int32)[0])) in load_results:
-    #     pre_processed_images['meta']['pre_dets'] = \
-    #       load_results['{}'.format(int(img_id.numpy().astype(np.int32)[0]))]
-    #   else:
-    #     print()
-    #     print('No pre_dets for', int(img_id.numpy().astype(np.int32)[0]), 
-    #       '. Use empty initialization.')
-    #     pre_processed_images['meta']['pre_dets'] = []
-    #   detector.reset_tracking()
-    #   print('Start tracking video', int(pre_processed_images['video_id']))
-    # if opt.public_det:
-    #   if '{}'.format(int(img_id.numpy().astype(np.int32)[0])) in load_results:
-    #     pre_processed_images['meta']['cur_dets'] = \
-    #       load_results['{}'.format(int(img_id.numpy().astype(np.int32)[0]))]
-    #   else:
-    #     print('No cur_dets for', int(img_id.numpy().astype(np.int32)[0]))
-    #     pre_processed_images['meta']['cur_dets'] = []
-    
     # print(pre_processed_images.keys())
     # dict_keys(['images', 'image', 'meta', 'is_first_frame', 'video_id', 'pc_2d', 'pc_N', 'pc_dep', 'pc_3d'])
 
-
-    img_ = pre_processed_images['image'].cpu().numpy().squeeze()
-    print(img_.shape)
-    # cv2.imshow('img', img_)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-    
-    # # 图片的分辨率为200*300，这里b, g, r设为随机值，注意dtype属性
-    # b = np.random.randint(0, 255, (200, 300), dtype=np.uint8)
-    # g = np.random.randint(0, 255, (200, 300), dtype=np.uint8)
-    # r = np.random.randint(0, 255, (200, 300), dtype=np.uint8)
-
-    # # 合并通道，形成图片
-    # img = cv2.merge([b, g, r])
-
-    # # 显示图片
-    # cv2.imshow('test', img)
-    # cv2.waitKey(1000)
-    # cv2.destroyWindow('test')
-  
-    ret = detector.run(pre_processed_images)
+    # 获取数据并推理
+    img_ = pre_processed_images['image'].cpu().numpy().squeeze()  
+    ret = detector.run(pre_processed_images)  
     results[int(img_id.numpy().astype(np.int32)[0])] = ret['results']
+    
+    # 绘制检测框
+    print(len(ret['results']))
+    # print(ret['results'])
+    '''
+    {'score': 0.77402115, 
+    'class': 1, 
+    'ct': [691.6757202148438, 496.65655517578125], 
+    'bbox': array([604.5227 , 443.01776, 762.00757, 548.9914 ], dtype=float32),   # 2d bbox
+    'dep': array([22.105442], dtype=float32),                                     # 深度信息
+    'dim': array([1.550109 , 1.8986427, 4.625182 ], dtype=float32),               # shape
+    'alpha': 1.7461928129196167, 
+    'loc': array([-2.380481 ,  1.2456704, 22.105442 ], dtype=float32),            # 3Dbbox中心点
+    'rot_y': 1.638918628788061,                                                   # 旋转角
+    'nuscenes_att': array([ 9.970085 , -9.622352 ,  3.659495 , -3.4705367, -9.169826 ,
+                            6.520779 , -8.420441 , -7.1458454], dtype=float32), 
+    'velocity': array([-0.67497313,  0.01155966, -9.892923  ], dtype=float32)} # 速度
+    '''
+    for sub_det in ret['results']:
+      # print(sub_det['bbox'][0])
+      # 定义矩形的左上角和右下角坐标
+      start_point = (int(sub_det['bbox'][0]), int(sub_det['bbox'][1]))
+      end_point = (int(sub_det['bbox'][2]), int(sub_det['bbox'][3]))
+
+      # 定义矩形的颜色和线宽
+      color = (0, 255, 0)  # 绿色
+      thickness = 2
+
+      # 绘制矩形
+      cv2.rectangle(img_, start_point, end_point, color, thickness=2)
+
+    # 可视化检测框
+    cv2.imshow('img', img_)
+    cv2.waitKey(200)
+    cv2.destroyAllWindows()
+    ##
     
     Bar.suffix = '[{0}/{1}]|Tot: {total:} |ETA: {eta:} '.format(
                    ind, num_iters, total=bar.elapsed_td, eta=bar.eta_td)

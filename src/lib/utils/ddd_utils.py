@@ -133,9 +133,9 @@ def rot_y2alpha(rot_y, x, cx, fx):
 
 def ddd2locrot(center, alpha, dim, depth, calib):
   # single image
-  locations = unproject_2d_to_3d(center, depth, calib)
+  locations = unproject_2d_to_3d(center, depth, calib) #  转换为3D坐标
   locations[1] += dim[0] / 2
-  rotation_y = alpha2rot_y(alpha, center[0], calib[0, 2], calib[0, 0])
+  rotation_y = alpha2rot_y(alpha, center[0], calib[0, 2], calib[0, 0]) # 计算heading角度
   return locations, rotation_y
 
 def project_3d_bbox(location, dim, rotation_y, calib):
