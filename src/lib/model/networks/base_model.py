@@ -28,12 +28,12 @@ class BaseModel(nn.Module):
         self.num_stacks = num_stacks
         self.heads = heads
         self.secondary_heads = opt.secondary_heads
-        # opt.secondary_heads = ['velocity', 'nuscenes_att', 'dep_sec', 'rot_sec']
+        # NOTE：opt.secondary_heads = ['velocity', 'nuscenes_att', 'dep_sec', 'rot_sec']
         
         last_channels = {head: last_channel for head in heads} # primary heads
         for head in self.secondary_heads:#secondary heads
           last_channels[head] = last_channel + len(opt.pc_feat_lvl)# 在原本基础上增加雷达特征通道
-          # opt.pc_feat_lvl = ['pc_dep','pc_vx','pc_vz']，如果有雷达相关，那通道数增加len()个数量
+          # NOTE：opt.pc_feat_lvl = ['pc_dep','pc_vx','pc_vz']，如果有雷达相关，那通道数增加len()个数量
         
         for head in self.heads:
           classes = self.heads[head]
@@ -110,13 +110,13 @@ class BaseModel(nn.Module):
       feats = self.img2feats(x)
       out = []
       
-      for s in range(self.num_stacks):
+      for s in range(self.num_stacks): # self.num_stacks = 1
         z = {}
 
         ## Run the first stage heads
         # 图像阶段检测头
         for head in self.heads: 
-          if head not in self.secondary_heads:
+          if head not in self.secondary_heads: # 执行一阶段检测头
             z[head] = self.__getattr__(head)(feats[s])
 
         # 引入毫米波点云head，获取对应的结果
@@ -137,10 +137,9 @@ class BaseModel(nn.Module):
           z['pc_hm'] = pc_hm[:,ind,:,:].unsqueeze(1)
 
           ## Run the second stage heads  
-          ## 二阶段检测头【数据特征加上了毫米波点云】
-          sec_feats = [feats[s], pc_hm]
+          sec_feats = [feats[s], pc_hm] # 二阶段检测头【数据特征加上了毫米波点云】
           sec_feats = torch.cat(sec_feats, 1)
-          for head in self.secondary_heads: 
+          for head in self.secondary_heads:  # 执行二阶段检测头
             z[head] = self.__getattr__(head)(sec_feats)
         
         out.append(z)
