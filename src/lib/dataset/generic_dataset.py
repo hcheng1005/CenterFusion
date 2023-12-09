@@ -81,21 +81,22 @@ class GenericDataset(data.Dataset):
       self._data_rng = np.random.RandomState(123)
       self.enable_meta = True if (opt.run_dataset_eval and split in ["val", "mini_val", "test"]) or opt.eval else False
     
-    if ann_path is not None and img_dir is not None:
-      print('==> initializing {} data from {}, \n images from {} ...'.format(
-        split, ann_path, img_dir))
-      self.coco = coco.COCO(ann_path)
-      self.images = self.coco.getImgIds()
+    # 使用dual数据集时暂时屏蔽以下代码
+    # if ann_path is not None and img_dir is not None:
+    #   print('==> initializing {} data from {}, \n images from {} ...'.format(
+    #     split, ann_path, img_dir))
+    #   self.coco = coco.COCO(ann_path)
+    #   self.images = self.coco.getImgIds()
 
-      if opt.tracking:
-        if not ('videos' in self.coco.dataset):
-          self.fake_video_data()
-        print('Creating video index!')
-        self.video_to_images = defaultdict(list)
-        for image in self.coco.dataset['images']:
-          self.video_to_images[image['video_id']].append(image)
+    #   if opt.tracking:
+    #     if not ('videos' in self.coco.dataset):
+    #       self.fake_video_data()
+    #     print('Creating video index!')
+    #     self.video_to_images = defaultdict(list)
+    #     for image in self.coco.dataset['images']:
+    #       self.video_to_images[image['video_id']].append(image)
       
-      self.img_dir = img_dir
+    #   self.img_dir = img_dir
 
 
   def __getitem__(self, index):
@@ -379,7 +380,8 @@ class GenericDataset(data.Dataset):
   # 获取点云数据并转换到图像坐标系
   def _load_pc_data(self, img, img_info, inp_trans, out_trans, flipped=0):
     img_height, img_width = img.shape[0], img.shape[1]
-    radar_pc = np.array(img_info.get('radar_pc', None))
+    # radar_pc = np.array(img_info.get('radar_pc', None))
+    radar_pc = img_info['radar_pc'] # 修改
     if radar_pc is None:
       return None, None, None, None
 
@@ -403,7 +405,7 @@ class GenericDataset(data.Dataset):
     # 点云映射到图像坐标系，删除像素坐标系外的点云
     # [pc_2d]： 点云的像素坐标系 [mask]: 有效点索引
     pc_2d, mask = map_pointcloud_to_image(radar_pc, np.array(img_info['camera_intrinsic']), 
-                              img_shape=(img_info['width'],img_info['height']))
+                                          img_shape=(img_info['width'],img_info['height']))
     pc_3d = radar_pc[:,mask]
 
     # sort points by distance
@@ -625,10 +627,9 @@ class GenericDataset(data.Dataset):
     pc_2d[0,:] = width - 1 - pc_2d[0,:]
     return pc_2d
   
-
-    # Transform points to image or feature space with augmentation
-    #  Inputs:
-    # pc_2d: [3xN]
+  # Transform points to image or feature space with augmentation
+  #  Inputs:
+  # pc_2d: [3xN]
   def _transform_pc(self, pc_2d, trans, img_width, img_height, filter_out=True):
 
     if pc_2d.shape[1] == 0:
@@ -784,9 +785,12 @@ class GenericDataset(data.Dataset):
       return
     radius = gaussian_radius((math.ceil(h), math.ceil(w)))
     radius = max(0, int(radius)) 
-    ct = np.array(
-      [(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
+    
+    # 2D框中心点
+    ct = np.array([(bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2], dtype=np.float32)
     ct_int = ct.astype(np.int32)
+    
+    # 类别
     ret['cat'][k] = cls_id - 1
     ret['mask'][k] = 1
     if 'wh' in ret:
@@ -875,10 +879,12 @@ class GenericDataset(data.Dataset):
       ## get pointcloud heatmap
       if self.opt.disable_frustum:
         ret['pc_hm'] = ret['pc_dep']
-        if opt.normalize_depth:
-          ret['pc_hm'][self.opt.pc_feat_channels['pc_dep']] /= opt.max_pc_dist
+        if self.opt.normalize_depth:
+          ret['pc_hm'][self.opt.pc_feat_channels['pc_dep']] /= self.opt.max_pc_dist
       else:
         dist_thresh = get_dist_thresh(calib, ct, ann['dim'], ann['alpha'])
+        
+        # 构造训练用的pc_hm
         pc_dep_to_hm(ret['pc_hm'], ret['pc_dep'], ann['depth'], bbox, dist_thresh, self.opt)
     
     

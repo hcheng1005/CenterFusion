@@ -132,9 +132,11 @@ def prefetch_test(opt):
       cv2.rectangle(img_, start_point, end_point, color, thickness=2)
 
     # 可视化检测框
-    cv2.imshow('img', img_)
-    cv2.waitKey(200)
-    cv2.destroyAllWindows()
+    # cv2.imshow('img', img_)
+    # cv2.waitKey(200)
+    # cv2.destroyAllWindows()
+    img_save_path = "../out/" + str(ind) + ".jpg"
+    cv2.imwrite(img_save_path, img_)
     ##
     
     Bar.suffix = '[{0}/{1}]|Tot: {total:} |ETA: {eta:} '.format(
