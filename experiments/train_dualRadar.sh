@@ -22,6 +22,7 @@ python mytrain4dual.py \
     --pc_z_offset 0.0 \
     --pillar_dims 1.0,0.2,0.2 \
     --max_pc_dist 60.0 \
+    --freeze_backbone \
     # --load_model ../models/centernet_baseline_e170.pth \
     # --freeze_backbone \
     # --resume \
