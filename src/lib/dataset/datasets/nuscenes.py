@@ -48,13 +48,6 @@ class nuScenes(GenericDataset):
     split_names = {
         'mini_train':'mini_train', 
         'mini_val':'mini_val',
-        'train': 'train', 
-        'train_detect': 'train_detect',
-        'train_track':'train_track', 
-        'val': 'val',
-        'test': 'test',
-        'mini_train_2': 'mini_train_2',
-        'trainval': 'trainval',
     }
     
     split_name = split_names[split]

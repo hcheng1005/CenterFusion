@@ -51,7 +51,7 @@ class BasicBlock(nn.Module):
 
     def forward(self, x, residual=None):
         if residual is None:
-            print('residual is None')
+            # print('residual is None')
             residual = x
 
         out = self.conv1(x)
@@ -61,11 +61,10 @@ class BasicBlock(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
         
-        tmp1 = out.detach()
-        print(f'out shape: {tmp1.cpu().numpy().shape}')
-        tmp2 = residual.detach()
-        print(f'residual shape: {tmp2.cpu().numpy().shape}')
-        # print(residual)
+        # tmp1 = out.detach()
+        # print(f'out shape: {tmp1.cpu().numpy().shape}')
+        # tmp2 = residual.detach()
+        # print(f'residual shape: {tmp2.cpu().numpy().shape}')
         
         out += residual
         

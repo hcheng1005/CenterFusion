@@ -18,14 +18,7 @@ import cv2
 
 import glob
 
-
 class DualradarDataset_ARBE(GenericDataset):
-    # num_categories = 1
-    # default_resolution = [-1, -1]
-    # class_name = ['']
-    # max_objs = 128
-    # cat_ids = {1: 1}
-
     default_resolution = [1440, 1920]
     num_categories = 3
     class_name = ['Car', 'Pedestrian', 'Cyclist']
@@ -33,17 +26,10 @@ class DualradarDataset_ARBE(GenericDataset):
     max_objs = 128
 
     def __init__(self, opt, split):
-        # assert (opt.custom_dataset_img_path != '') and \
-        #     (opt.custom_dataset_ann_path != '') and \
-        #     (opt.num_classes != -1) and \
-        #     (opt.input_h != -1) and (opt.input_w != -1), \
-        #     'The following arguments must be specified for custom datasets: ' + \
-        #     'custom_dataset_img_path, custom_dataset_ann_path, num_classes, ' + \
-        #     'input_h, input_w.'
-        img_dir = "/media/charles/ShareDisk/00myDataSet/Dual_radar/training/image/"
-        ann_path = "/media/charles/ShareDisk/00myDataSet/Dual_radar/training/label/"
-        pc_path = "/media/charles/ShareDisk/00myDataSet/Dual_radar/training/arbe/"
-        calib_path = "/media/charles/ShareDisk/00myDataSet/Dual_radar/training/calib/"
+        img_dir = "/root/code/CenterFusion/data/dual_radar/training/image/"
+        ann_path = "/root/code/CenterFusion/data/dual_radar/training/label/"
+        pc_path = "/root/code/CenterFusion/data/dual_radar/training/arbe/"
+        calib_path = "/root/code/CenterFusion/data/dual_radar/training/calib/"
         self.num_categories = opt.num_classes
         self.class_name = ['' for _ in range(self.num_categories)]
         self.default_resolution = [opt.input_h, opt.input_w]
@@ -58,12 +44,6 @@ class DualradarDataset_ARBE(GenericDataset):
         self.split = split
         self.root_split_path = self.root_path / \
             ('training' if self.split != 'test' else 'testing')
-
-        # self.num_samples = len(self.images)
-        # print('Loaded Custom dataset {} samples'.format(0))
-        
-        # self.dual_radar_infos = []
-        # self.include_dual_radar_data(self.split)
         
         data_format = '.png'
         self.img_file_list = glob.glob(str(Path(img_dir) / f'*{data_format}')) if Path(img_dir).is_dir() else [Path(img_dir)]
@@ -75,8 +55,6 @@ class DualradarDataset_ARBE(GenericDataset):
         self.calib_file_list = glob.glob(str(Path(calib_path) / f'*{data_format}')) if Path(calib_path).is_dir() else [Path(calib_path)]
     
     def __len__(self):
-        # if self._merge_all_iters_to_one_epoch:
-        #     return len(self.dual_radar_infos) * self.total_epochs
         print('Loaded {} samples'.format(len(self.img_file_list)))
         return len(self.img_file_list)  
         
@@ -96,11 +74,6 @@ class DualradarDataset_ARBE(GenericDataset):
         img_info['camera_intrinsic'] = P2
         img_info['calib'] = P2[:3, :3]
         img_info['radar_pc'] = radar_pc
-
-        # img, anns, img_info, img_path = self._load_data(index)  # 获取图像、标注以及路径
-
-        # sort annotations based on depth form far to near
-        # new_anns = sorted(anns, key=lambda k: k['depth'], reverse=True)
 
         # Get center and scale from image
         c = np.array([img.shape[1] / 2., img.shape[0] / 2.], dtype=np.float32)
@@ -136,23 +109,19 @@ class DualradarDataset_ARBE(GenericDataset):
                         'pc_3d': pc_3d,
                         'pc_N': pc_N,
                         'pc_dep': pc_dep})
-
         pre_cts, track_ids = None, None
 
         # init samples
         self._init_ret(ret, gt_det)
         calib = self._get_calib(img_info, width, height)
 
-        # # get velocity transformation matrix
-        # if "velocity_trans_matrix" in img_info:
-        #     velocity_mat = np.array(
-        #         img_info['velocity_trans_matrix'], dtype=np.float32)
-        # else:
-        #     velocity_mat = np.eye(4)
-
         num_objs = min(len(anns), self.max_objs)
         for k in range(num_objs):
             ann = anns[k]
+            
+            if ann['category_id'] < 0 or ann['category_id'] > self.opt.num_classes:
+                continue
+            
             cls_id = int(self.cat_ids[ann['category_id']])
             if cls_id > self.opt.num_classes or cls_id <= -999:
                 continue
@@ -160,21 +129,10 @@ class DualradarDataset_ARBE(GenericDataset):
             bbox, bbox_amodal = self._get_bbox_output(
                 ann['bbox'], trans_output, height, width)
 
-            # if cls_id <= 0 or ('iscrowd' in ann and ann['iscrowd'] > 0):
-            #     self._mask_ignore_or_crowd(ret, cls_id, bbox)
-            #     continue
-
             # 构造最终实例
             self._add_instance(ret, gt_det, k, cls_id, bbox, bbox_amodal, ann, trans_output, aug_s,
                                calib, pre_cts, track_ids)
-
-        # if self.opt.debug > 0 or self.enable_meta:
-        #     gt_det = self._format_gt_det(gt_det)
-        #     meta = {'c': c, 's': s, 'gt_det': gt_det, 'img_id': img_info['id'],
-        #             'img_path': img_path, 'calib': calib,
-        #             'img_width': img_info['width'], 'img_height': img_info['height'],
-        #             'flipped': flipped, 'velocity_mat': velocity_mat}
-        #     ret['meta'] = meta
+            
         ret['calib'] = calib
 
         return ret
@@ -192,13 +150,11 @@ class DualradarDataset_ARBE(GenericDataset):
             split_dir).readlines()] if split_dir.exists() else None
 
     def get_arbe(self, idx):
-        # arbe_file = self.root_split_path / 'arbe' / ('%s.bin' % idx)
         arbe_file = self.pc_file_list[idx]
-        print(arbe_file)
-        # assert arbe_file.exists()
         # 修改1  点数变为5
         points_arbe = np.fromfile(
             str(arbe_file), dtype=np.float32).reshape(-1, 5)
+                
         num_point = points_arbe.shape[0]
         points_arbe_hom = np.hstack(
             (points_arbe[:, 0:3], np.ones((num_point, 1))))
@@ -206,18 +162,12 @@ class DualradarDataset_ARBE(GenericDataset):
                          0.021181980812864695, 2.214080041485726, 0.015169806470300943, 0.022121191179620064, 0.9996402002082792, -1.6030740415943632]).reshape([3, 4])
         point_lidar = np.dot(points_arbe_hom, np.transpose(ARB2V))
         points_arbe[:, 0:3] = point_lidar
-
+        
+        points_arbe = points_arbe.transpose()
         return points_arbe
 
-    # def get_image_shape(self, idx):
-    #     img_file = self.root_split_path / 'image' / ('%s.png' % idx)
-    #     assert img_file.exists()
-    #     return np.array(io.imread(img_file).shape[:2], dtype=np.int32)
-
     def get_image(self, idx):
-        # img_file = self.root_split_path / 'image' / ('%s.png' % idx)
         img_file = self.img_file_list[idx]
-        # assert img_file.exists()
         img = cv2.imread(img_file)
         cv2.resize(img,(1440,1920))
         # cv2.imshow('img',img)
@@ -226,15 +176,11 @@ class DualradarDataset_ARBE(GenericDataset):
         return img
 
     def get_label(self, idx):
-        # label_file = self.root_split_path / 'label' / ('%s.txt' % idx)
         label_file = self.label_file_list[idx]
-        # assert label_file.exists()
         return object3d_dual_radar.get_objects_from_label(label_file)
 
     def get_calib(self, idx):
-        # calib_file = self.root_split_path / 'calib' / ('%s.txt' % idx)
         calib_file = self.calib_file_list[idx]
-        # assert calib_file.exists()
         return calibration_dual_radar.Calibration(calib_file)
 
     @staticmethod
@@ -507,165 +453,3 @@ class DualradarDataset_ARBE(GenericDataset):
                                  single_pred_dict['score'][idx]), file=f)
 
         return annos
-
-    # def evaluation(self, det_annos, class_names, **kwargs):  # 评估函数
-    #     def filter_det_range(dets, d_range, k1):
-    #         dets = copy.deepcopy(dets)
-    #         if dets['location'].shape[0] == 0:
-    #             return dets
-    #         valid_idx = (np.abs(dets['location'][:, 2]) > d_range[0]) * \
-    #             (np.abs(dets['location'][:, 2]) <= d_range[1]) * \
-    #             (np.abs(dets['location'][:, 0]) > -40) * \
-    #             (np.abs(dets['location'][:, 0]) < 40)
-
-    #         # 把DontCare的位置改回True
-    #         for i in range(len(dets['name'])):
-    #             if dets['name'][i] == 'DontCare':
-    #                 valid_idx[i] = True
-
-    #         for k in dets:
-    #             if k == k1:
-    #                 continue
-    #             # 对gt_boxes_lidar做处理
-    #             if k == 'gt_boxes_arbe':
-    #                 temp_idx = valid_idx[:len(dets[k])]
-    #                 dets[k] = dets[k][temp_idx]
-    #             else:
-    #                 try:
-    #                     dets[k] = dets[k][valid_idx]
-    #                 except:
-    #                     import pdb
-    #                     pdb.set_trace()
-    #                     print(dets[k], k)
-    #                     raise
-    #         return dets
-    #     if 'annos' not in self.dual_radar_infos[0].keys():
-    #         return None, {}
-
-    #     from .kitti_object_eval_python import eval as kitti_eval
-
-    #     eval_det_annos = copy.deepcopy(det_annos)
-    #     eval_gt_annos = [copy.deepcopy(info['annos'])
-    #                      for info in self.dual_radar_infos]
-    #     # range
-    #     range1 = [0, 30]
-    #     range2 = [20, 40]
-    #     range3 = [40, 1000]
-    #     k = range1
-    #     # import pdb; pdb.set_trace()
-    #     dt_annos_range = [filter_det_range(
-    #         dets1, k, 'frame_id') for dets1 in eval_det_annos]
-    #     gt_annos_range = [filter_det_range(
-    #         dets2, k, 'frame_id') for dets2 in eval_gt_annos]
-    #     # ap_result_str, ap_dict = kitti_eval.get_official_eval_result(gt_annos_range, dt_annos_range, class_names)
-    #     ap_result_str, ap_dict = kitti_eval.get_official_eval_result(
-    #         eval_gt_annos, eval_det_annos, class_names)
-
-    #     return ap_result_str, ap_dict
-
-
-
-    # def __getitem__(self, index):
-    #     # index = 4
-    #     if self._merge_all_iters_to_one_epoch:
-    #         index = index % len(self.dual_radar_infos)
-
-    #     info = copy.deepcopy(self.dual_radar_infos[index])
-
-    #     sample_idx = info['point_cloud']['arbe_idx']
-
-    #     points = self.get_arbe(sample_idx)
-    #     calib = self.get_calib(sample_idx)
-
-    #     img_shape = info['image']['image_shape']
-    #     if self.dataset_cfg.FOV_POINTS_ONLY:
-    #         pts_rect = calib.lidar_to_rect(points[:, 0:3])
-    #         fov_flag = self.get_fov_flag(pts_rect, img_shape, calib)
-    #         points = points[fov_flag]
-
-    #     input_dict = {
-    #         'points': points,
-    #         'frame_id': sample_idx,
-    #         'calib': calib,
-    #     }
-
-    #     if 'annos' in info:
-    #         annos = info['annos']
-    #         annos = common_utils.drop_info_with_name(annos, name='DontCare')
-    #         loc, dims, rots = annos['location'], annos['dimensions'], annos['rotation_y']
-    #         gt_names = annos['name']
-    #         gt_boxes_camera = np.concatenate(
-    #             [loc, dims, rots[..., np.newaxis]], axis=1).astype(np.float32)
-    #         gt_boxes_lidar = box_utils.boxes3d_kitti_camera_to_lidar(
-    #             gt_boxes_camera, calib)
-
-    #         input_dict.update({
-    #             'gt_names': gt_names,
-    #             'gt_boxes': gt_boxes_lidar
-    #         })
-    #         road_plane = self.get_road_plane(sample_idx)
-    #         if road_plane is not None:
-    #             input_dict['road_plane'] = road_plane
-
-    #     data_dict = self.prepare_data(data_dict=input_dict)
-
-    #     data_dict['image_shape'] = img_shape
-    #     return data_dict
-
-
-# def create_dual_radar_infos(dataset_cfg, class_names, data_path, save_path, workers=16):
-#     dataset = DualradarDataset_ARBE(dataset_cfg=dataset_cfg, class_names=class_names, root_path=data_path, training=False)
-#     train_split, val_split = 'train', 'val'
-
-#     train_filename = save_path / ('dual_radar_infos_%s.pkl' % train_split)
-#     val_filename = save_path / ('dual_radar_infos_%s.pkl' % val_split)
-#     trainval_filename = save_path / 'dual_radar_infos_trainval.pkl'
-#     test_filename = save_path / 'dual_radar_infos_test.pkl'
-
-#     print('---------------Start to generate data infos---------------')
-
-#     dataset.set_split(train_split)
-#     dual_radar_infos_train = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
-#     with open(train_filename, 'wb') as f:
-#         pickle.dump(dual_radar_infos_train, f)
-#     print('dual radar info train file is saved to %s' % train_filename)
-
-#     dataset.set_split(val_split)
-#     dual_radar_infos_val = dataset.get_infos(num_workers=workers, has_label=True, count_inside_pts=True)
-#     with open(val_filename, 'wb') as f:
-#         pickle.dump(dual_radar_infos_val, f)
-#     print('dual radar info val file is saved to %s' % val_filename)
-
-#     with open(trainval_filename, 'wb') as f:
-#         pickle.dump(dual_radar_infos_train + dual_radar_infos_val, f)
-#     print('dual radar info trainval file is saved to %s' % trainval_filename)
-
-#     dataset.set_split('test')
-#     dual_radar_infos_test = dataset.get_infos(num_workers=workers, has_label=False, count_inside_pts=False)
-#     with open(test_filename, 'wb') as f:
-#         pickle.dump(dual_radar_infos_test, f)
-#     print('dual radar info test file is saved to %s' % test_filename)
-
-#     print('---------------Start create groundtruth database for data augmentation---------------')
-#     dataset.set_split(train_split)
-#     dataset.create_groundtruth_database(train_filename, split=train_split)
-
-#     print('---------------Data preparation Done---------------')
-
-
-# if __name__ == '__main__':
-#     import sys
-#     if sys.argv.__len__() > 1 and sys.argv[1] == 'create_dual_radar_infos':
-#         import yaml
-#         from pathlib import Path
-#         from easydict import EasyDict
-#         dataset_cfg = EasyDict(yaml.safe_load(open(sys.argv[2])))
-#         ROOT_DIR = (Path(__file__).resolve().parent / '../../../').resolve()
-#         create_dual_radar_infos(
-#             dataset_cfg=dataset_cfg,
-#             class_names=['Car', 'Pedestrian', 'Cyclist'],
-#             # fangchange
-#             data_path=ROOT_DIR / 'data' / 'dual_radar' / 'radar_arbe',
-#             save_path=ROOT_DIR / 'data' / 'dual_radar' / 'radar_arbe'
-#         )
-# #python -m pcdet.datasets.dual_radar.dual_radar_dataset_arbe create_dual_radar_infos tools/cfgs/dataset_configs/dual_radar_dataset_arbe.yaml

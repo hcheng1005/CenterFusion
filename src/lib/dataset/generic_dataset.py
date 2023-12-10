@@ -81,7 +81,7 @@ class GenericDataset(data.Dataset):
       self._data_rng = np.random.RandomState(123)
       self.enable_meta = True if (opt.run_dataset_eval and split in ["val", "mini_val", "test"]) or opt.eval else False
     
-    # 使用dual数据集时暂时屏蔽以下代码
+    # # 使用dual数据集时暂时屏蔽以下代码
     # if ann_path is not None and img_dir is not None:
     #   print('==> initializing {} data from {}, \n images from {} ...'.format(
     #     split, ann_path, img_dir))
@@ -380,8 +380,11 @@ class GenericDataset(data.Dataset):
   # 获取点云数据并转换到图像坐标系
   def _load_pc_data(self, img, img_info, inp_trans, out_trans, flipped=0):
     img_height, img_width = img.shape[0], img.shape[1]
+    
     # radar_pc = np.array(img_info.get('radar_pc', None))
+    
     radar_pc = img_info['radar_pc'] # 修改
+    radar_pc[2,:] = np.sqrt(np.sum(radar_pc[0,:]**2 + radar_pc[1,:]**2))
     if radar_pc is None:
       return None, None, None, None
 
@@ -417,7 +420,9 @@ class GenericDataset(data.Dataset):
     if flipped:
       pc_2d = self._flip_pc(pc_2d,  img_width)
       pc_3d[0,:] *= -1  # flipping the x dimension
-      pc_3d[8,:] *= -1  # flipping x velocity (x is right, z is front)
+      # pc_3d[8,:] *= -1
+      pc_3d[3,:] *= -1  # flipping x velocity (x is right, z is front)
+      pc_3d[4,:] *= -1  # flipping x velocity (x is right, z is front)
 
     # 进一步处理点云数据
     pc_2d, pc_3d, pc_dep = self._process_pc(pc_2d, pc_3d, img, inp_trans, out_trans, img_info)
